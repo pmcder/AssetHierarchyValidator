@@ -1,4 +1,4 @@
-# assetpy
+# AssetHierarchyValidator
 
 Enterprise Asset Management (EAM) graph library for modeling and visualizing hierarchical asset structures. Built on [NetworkX](https://networkx.org/) and [Plotly](https://plotly.com/), it provides a validated, traversable directed graph of assets from enterprise down to component level.
 
