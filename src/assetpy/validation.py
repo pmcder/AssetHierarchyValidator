@@ -10,7 +10,7 @@ import networkx as nx
 from .models import Asset, AssetType
 
 if TYPE_CHECKING:
-    pass
+    from .rules import ValidationRule
 
 
 VALID_PARENT_TYPES: dict[AssetType, set[AssetType]] = {
@@ -36,7 +36,7 @@ class ErrorCode(str, Enum):
 
 @dataclass
 class ValidationError:
-    code: ErrorCode
+    code: str
     message: str
     asset_ids: list[str] = field(default_factory=list)
 
@@ -60,6 +60,14 @@ class ValidationResult:
 
 
 class HierarchyValidator:
+    def __init__(self, extra_rules: list["ValidationRule"] | None = None) -> None:
+        for rule in (extra_rules or []):
+            if not hasattr(rule, "severity") or rule.severity not in ("error", "warning"):
+                raise TypeError(
+                    f"Rule {rule!r} must have a 'severity' attribute of 'error' or 'warning'."
+                )
+        self._extra_rules: list["ValidationRule"] = extra_rules or []
+
     def validate(self, assets: list[Asset]) -> ValidationResult:
         errors: list[ValidationError] = []
         warnings: list[ValidationError] = []
@@ -76,6 +84,13 @@ class HierarchyValidator:
         errors.extend(self._check_type_hierarchy(assets))
         errors.extend(self._check_cycles(assets))
         warnings.extend(self._check_orphan_nodes(assets))
+
+        for rule in self._extra_rules:
+            findings = rule.check(assets)
+            if rule.severity == "error":
+                errors.extend(findings)
+            else:
+                warnings.extend(findings)
 
         return ValidationResult(
             is_valid=len(errors) == 0,
